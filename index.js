@@ -20,6 +20,7 @@ program.parse(process.argv);
 const prompt = '你是一位客服，需要回覆使用者提出的問題。';
 const inputs = ['我忘記密碼了','是登錄密碼'];
 const res = []
+let previousHistory = ''
 
 async function testRGA() {
 	const model = langChain.createLLM();
@@ -30,18 +31,25 @@ async function testRGA() {
 	const conversationChain = await langChain.createConversationRetrievalQA(model, retriever, prompt);
 
 	for (let i=0; i < inputs.length; ++i){
+
 		let response;
+
 		if(i===0){
 			response = await conversationChain.invoke({ 
 				question: inputs[i],
 			});
 		}else{
+			const formatChatMessages = langChain.formatChatHistory(inputs[i-1], res[i-1], previousHistory);
+
 			response = await conversationChain.invoke({ 
 				question: inputs[i],
-				chatHistory: langChain.formatChatHistory(inputs[i-1], res[i-1]),
+				chatHistory: formatChatMessages,
 			});
+
+			previousHistory = formatChatMessages;
 		}
-		res.push(response)
+
+		res.push(response);
 	}
 
 	console.log(res)
