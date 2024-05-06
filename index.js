@@ -25,9 +25,13 @@ async function testRAG({path = 'output.xlsx', times = 10} = {}) {
 	const testsResult = await Promise.all(
 		Array.from({ length: times })
 			.map(() => limit(() => runTest({
-				model: "gpt-3.5-turbo",
-				filePath: "file/20240422-data-text-clean.json",
-				messages: ['我充值沒到', 'tim 200'],
+				// model: "gpt-3.5-turbo",
+				model: "gpt-4-turbo",
+				// filePath: "file/20240422-data-text-clean.json",
+				// filePath: "file/20240422_數據文本.docx",
+				filePath: "file/20240502.txt",
+				messages: ['充值沒到', '帳號:test, 金額:200', '三方, tim'],
+				// messages: ['我忘記密碼了', '是資金密碼'],
 				prompt: '你是一位客服，需要回覆用戶提出的问题'
 			}))
 	))
@@ -44,7 +48,7 @@ async function testRAG({path = 'output.xlsx', times = 10} = {}) {
 	.map((_, index) => {
 		const promptIndex = Math.floor(index / 3);
 		const isCompletionRow = index % 3 === 0;
-		const isDurationRow = index % 3 === 1;
+		const isMetadataRow = index % 3 === 1;
 		const isContextRow = index % 3 === 2;
 		const result = {
 			prompt: testsResult[0][promptIndex].question,
@@ -52,9 +56,12 @@ async function testRAG({path = 'output.xlsx', times = 10} = {}) {
 
 		testsResult.forEach((testResult, testIndex) => {
 			if (isCompletionRow) {
-				result[`completion${testIndex}`] = testResult[promptIndex].answer;
-			} else if (isDurationRow) {
-				result[`completion${testIndex}`] = testResult[promptIndex].duration;
+				result[`completion${testIndex}`] = testResult[promptIndex].output;
+			} else if (isMetadataRow) {
+				result[`completion${testIndex}`] = JSON.stringify({
+					duration: testResult[promptIndex].duration,
+					...testResult[promptIndex].metadata
+				},null,2);
 			} else if (isContextRow) {
 				result[`completion${testIndex}`] = testResult[promptIndex].context.map(({pageContent}) => pageContent).join('\n');
 			}
@@ -88,9 +95,14 @@ async function testRAG({path = 'output.xlsx', times = 10} = {}) {
 }
 
 async function runTest({prompt, messages = [], model = "gpt-3.5-turbo", filePath = "file/20240422-data-text-clean.json" } = {}){
-	const openAIModel = langChain.createLLM({ model, temperature: 1 });
-	const file = await langChain.loadJsonFile(filePath);
-	const retriever = await langChain.createRetriever(file,{});
+	const openAIModel = langChain.createLLM({ model, temperature: 0 });
+	// const file = await langChain.loadJsonFile(filePath);
+	const file = await langChain.loadTextFile(filePath);
+	// const file = await langChain.loadDocxFile(filePath);
+	const retriever = await langChain.createRetriever(file,{
+		chunkSize:100,
+		chunkOverlap:30
+	});
 	const { chain, memory } = await langChain.createConversationRetrievalQA(openAIModel, retriever, prompt);
 	const response = [];
 
@@ -102,11 +114,13 @@ async function runTest({prompt, messages = [], model = "gpt-3.5-turbo", filePath
 		const res = await chain.invoke(messages[i]);
 
 		res.duration = `${`${(Date.now() - start)}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}ms`
+		res.metadata = res.answer.response_metadata.tokenUsage;
+		res.output = res.answer.content;
 
 		await memory.saveContext({
 			input: messages[i],
 		},{
-			output: res.answer,
+			output: res.answer.content,
 		})
 
 
