@@ -8,11 +8,8 @@ program
 	.name('')
 	.usage(`
 	-------- Test -----------
-	node . test
+	node . test 10
 	`);
-program
-	.command('start')
-	.description('Start chat');
 program
 	.command('test')
 	.description('Start test');
@@ -134,7 +131,7 @@ async function execute() {
 	const { args } = program;
 
 	if (args[0] === 'test') {
-		return testRAG({path: args[1]});
+		return testRAG({times: args[1]});
 	}
 }
 
