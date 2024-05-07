@@ -16,7 +16,7 @@ program
 program.parse(process.argv);
 
 async function testRAG({path = 'output.xlsx', times = 10} = {}) {
-	const limit = pLimit(5);
+	const limit = pLimit(10);
 	const workbook = new ExcelJS.Workbook();
 	const worksheet = workbook.addWorksheet('忘記密碼');
 	const testsResult = await Promise.all(
@@ -27,9 +27,10 @@ async function testRAG({path = 'output.xlsx', times = 10} = {}) {
 				// filePath: "file/20240422-data-text-clean.json",
 				// filePath: "file/20240422_數據文本.docx",
 				filePath: "file/20240502.txt",
-				messages: ['充值沒到', '帳號:test, 金額:200', '三方, tim'],
+				// messages: ['充值沒到', '帳號:test, 金額:200', '三方, tim'],
 				// messages: ['我忘記密碼了', '是資金密碼'],
-				prompt: '你是一位客服，需要回覆用戶提出的问题'
+				prompt: '你是一位客服，需要回覆用戶提出的问题',
+				// prompt: '回答我提出的問題，不確定就回答不知道'
 			}))
 	))
 
@@ -93,9 +94,7 @@ async function testRAG({path = 'output.xlsx', times = 10} = {}) {
 
 async function runTest({prompt, messages = [], model = "gpt-3.5-turbo", filePath = "file/20240422-data-text-clean.json" } = {}){
 	const openAIModel = langChain.createLLM({ model, temperature: 0 });
-	// const file = await langChain.loadJsonFile(filePath);
-	const file = await langChain.loadTextFile(filePath);
-	// const file = await langChain.loadDocxFile(filePath);
+	const file = await langChain.loadKnowledgeFile(filePath);
 	const retriever = await langChain.createRetriever(file,{
 		chunkSize:100,
 		chunkOverlap:30
